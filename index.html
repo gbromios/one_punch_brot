@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<style>body {margin: 0px;}</style>
+<body>
+<canvas id="mb"></canvas>
+<script>
+
+MB = function(){
+	this.threshold = 255;
+	this.resize(-2.0, 2.0);
+};
+
+MB.prototype.clear = function(x, x1){
+	this.data = Array(this.width * this.height).fill(0);
+	this.iterations = 0;
+};
+
+
+MB.prototype.resize = function(x, x1){
+	this.height = window.innerHeight;
+	this.width = window.innerWidth;
+	this.canvas = document.getElementById("mb");
+	this.context = this.canvas.getContext("2d");
+
+	this.clear();
+
+	this.dimensions = {};
+
+	
+};
+
+MB.prototype.render = function(){
+	this.canvas.width = this.width;
+	this.canvas.height = this.height;
+	this.context = this.canvas.getContext("2d");
+	this.context.clearRect(0, 0, this.width, this.height)
+
+	var data = this.context.getImageData(0, 0, this.width, this.height);
+	this.eachPixel(data.data);
+	this.context.putImageData(data, 0, 0);
+};
+
+MB.prototype.eachPixel = function(data) {
+	for (var x = 0; x < this.width; x++) {
+		for (var y = 0; y < this.height; y++) {
+			this.drawAt(x, y, data)
+		}
+	}
+};
+
+MB.prototype.drawAt = function(x, y, data){
+	var i = (y * this.width + x) * 4;
+	var e = this.getEscape(x, y);
+
+	// stays bounded
+	if (e === -1) {
+		//rgba
+		data[i]   = 0;
+		data[i+1] = 0;
+		data[i+2] = 0;
+		data[i+3] = 255;
+	} else {
+		var v = (255 / this.threshold) * e;
+		data[i]   = v;
+		data[i+1] = v;
+		data[i+2] = v;
+		data[i+3] = 255;
+	}
+	
+}
+
+MB.prototype.getEscape = function(x, y) {
+	var a = this.getXValue(x);
+	var b = this.getYValue(y);
+
+	var ac = a;
+	var bc = b;
+
+	for (var i = 0; i < this.threshold; i++) {;;
+		if ( Math.sqrt( a*a + b*b ) > 2.0 ) { return i; }
+
+		var a1 = (a*a - b*b) + ac;
+		var b1 = (2 * a * b) + bc;
+
+		a = a1;
+		b = b1;
+
+
+	}
+	return -1;
+
+
+}
+
+
+MB.prototype.getXValue = function(pixel){
+	return this.dimensions.x + (pixel * this.dimensions.xStep);
+};
+
+MB.prototype.getYValue = function(pixel){
+	// tryhard mode: if you were drawing something that's not symmetric about the
+	// x-axis, you'd probably want to flip this so image wont be upside down
+	return this.dimensions.y + (pixel * this.dimensions.yStep);
+};
+
+window.mb = new MB();
+mb.render()
+console.log('doneski');
+
+</script>
+</body>
+</html>
