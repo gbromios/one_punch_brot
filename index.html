@@ -7,25 +7,38 @@
 <script>
 
 MB = function(){
+	this.canvas = document.getElementById("mb");
+	this.context = this.canvas.getContext("2d");
+	this.fillStyle = "black";
+
 	this.threshold = 255;
-	this.resize(-2.0, 2.0);
+	this.bound = 2.0;
+	this.resize(-1.5, -1.0, 2.0);
+
+	// not sure if i care to initialize values that will get init'd in resize call
+
 };
 
-MB.prototype.clear = function(x, x1){
-	this.data = Array(this.width * this.height).fill(0);
+MB.prototype.clear = function(){
+	this.context.fillRect(0, 0, this.width, this.height);
+	this.data = Array(this.width * this.height * 4).fill(0);
 	this.iterations = 0;
 };
 
 
-MB.prototype.resize = function(x, x1){
+MB.prototype.resize = function(x, y, xd){
+	// x, y = starting x, y
+	// xd = how much x do we show (yd calculated from this if we need it)
 	this.height = window.innerHeight;
 	this.width = window.innerWidth;
-	this.canvas = document.getElementById("mb");
-	this.context = this.canvas.getContext("2d");
-
 	this.clear();
 
-	this.dimensions = {};
+	// find y-pixels per x-pixel
+	this.aspect = this.height / this.width;
+	this.pixel_size = xd / this.width;
+	this.x0 = x
+	this.y0 = y
+
 
 	
 };
@@ -37,31 +50,25 @@ MB.prototype.render = function(){
 	this.context.clearRect(0, 0, this.width, this.height)
 
 	var data = this.context.getImageData(0, 0, this.width, this.height);
-	this.eachPixel(data.data);
-	this.context.putImageData(data, 0, 0);
-};
-
-MB.prototype.eachPixel = function(data) {
 	for (var x = 0; x < this.width; x++) {
 		for (var y = 0; y < this.height; y++) {
 			this.drawAt(x, y, data)
 		}
 	}
+	this.context.putImageData(data, 0, 0);
 };
 
 MB.prototype.drawAt = function(x, y, data){
 	var i = (y * this.width + x) * 4;
-	var e = this.getEscape(x, y);
-
 	// stays bounded
-	if (e === -1) {
+	if (this.data[i]) {
 		//rgba
 		data[i]   = 0;
 		data[i+1] = 0;
 		data[i+2] = 0;
 		data[i+3] = 255;
 	} else {
-		var v = (255 / this.threshold) * e;
+		var v = (255 / this.iterations) * this.data[i+1]
 		data[i]   = v;
 		data[i+1] = v;
 		data[i+2] = v;
@@ -70,43 +77,57 @@ MB.prototype.drawAt = function(x, y, data){
 	
 }
 
-MB.prototype.getEscape = function(x, y) {
+MB.prototype.next = function(){
+	this.iterations++;
+	for (var x = 0; x < this.width; x++) {
+		for (var y = 0; y < this.height; y++) {
+			this.escapesAt(x, y);
+		}
+	}
+}
+
+MB.prototype.escapesAt = function(x, y) {
+	var i = ((this.width * y) + x) * 4
+	if ( this.data[i] === 1 ) { return true; }
+
+
 	var a = this.getXValue(x);
 	var b = this.getYValue(y);
 
-	var ac = a;
-	var bc = b;
+	var za = this.data[i+2];
+	var zb = this.data[i+3]
 
-	for (var i = 0; i < this.threshold; i++) {;;
-		if ( Math.sqrt( a*a + b*b ) > 2.0 ) { return i; }
+	this.data[i+1]++;
+	this.data[i+2] = (za*za - zb*zb) + a;
+	this.data[i+3] = (2 * za * zb) + b;
 
-		var a1 = (a*a - b*b) + ac;
-		var b1 = (2 * a * b) + bc;
-
-		a = a1;
-		b = b1;
-
-
+	// escaped
+	if ( Math.sqrt( za*za + zb*zb ) > 2.0 ) {
+		this.data[i] = 1;
 	}
-	return -1;
 
+	return this.data[i] === 1 ? true : false;
 
-}
-
+};
 
 MB.prototype.getXValue = function(pixel){
-	return this.dimensions.x + (pixel * this.dimensions.xStep);
+	return this.x0 + (pixel * this.pixel_size);
 };
 
 MB.prototype.getYValue = function(pixel){
 	// tryhard mode: if you were drawing something that's not symmetric about the
 	// x-axis, you'd probably want to flip this so image wont be upside down
-	return this.dimensions.y + (pixel * this.dimensions.yStep);
+	return this.y0 + (pixel * this.pixel_size);
 };
 
 window.mb = new MB();
 mb.render()
 console.log('doneski');
+
+window.doit = function(){
+	mb.next()
+	mb.render()
+}
 
 </script>
 </body>
